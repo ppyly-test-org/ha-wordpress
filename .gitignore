@@ -1,0 +1,6 @@
+sa-private-key.json
+.terraform.lock.hcl
+.terraform
+envvars.sh
+salt.tpl
+test.tf

@@ -1,0 +1,116 @@
+---
+# tasks file for wordpress
+- name: update & upgrade
+  ansible.builtin.apt:
+    upgrade: yes
+    update_cache: 'true'
+  become: true
+
+- name: gcsfuse install
+  ansible.builtin.shell: |
+    export GCSFUSE_REPO=gcsfuse-`lsb_release -c -s`
+    echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" | sudo tee /etc/apt/sources.list.d/gcsfuse.list
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+    sudo apt update
+    sudo apt install gcsfuse -y
+    sudo echo user_allow_other >> /etc/fuse.conf
+  become: true
+
+# - name: get salt
+#   ansible.builtin.shell: "curl https://api.wordpress.org/secret-key/1.1/salt/"
+#   register: salt_result
+
+- name: wordpress dir
+  ansible.builtin.file:
+    path: /mnt/wordpress
+    state: directory
+    mode: "0777"
+    owner: pashkadez
+  become: true
+
+- name: install Apache
+  package:
+    name: 'apache2'
+    state: present
+  become: true
+
+- name: Install a list of packages
+  ansible.builtin.apt:
+    pkg:
+    - php 
+    - libapache2-mod-php
+    - php-mysql
+    - unzip
+    - php-curl
+    - php-common
+    - php-mbstring
+    - php-gd
+    - php-intl
+    - php-xml
+    - php-fpm
+    - php-zip
+    - ghostscript
+    - php-bcmath
+    - php-imagick
+    - php-json
+  become: true  
+
+- name: download wordpress
+  ansible.builtin.shell: |
+    (cd /home/pashkadez && sudo -u pashkadez wget https://wordpress.org/latest.zip)
+    (cd /home/pashkadez && sudo -u pashkadez unzip latest.zip)
+    sudo chmod 777 /home/pashkadez/wordpress -R
+  become: true
+
+- name: wp-config.php template a file 
+  ansible.builtin.template:
+    src: ../templates/wp-config.p1
+    dest: /home/pashkadez/wordpress/wp-config.php
+    owner: pashkadez
+    mode: '0755'
+  become: true
+
+- name: salt file
+  ansible.builtin.copy:
+    src: ../files/salt.tpl
+    dest: /home/pashkadez/wordpress/salt.tpl
+    mode: "0644"
+    owner: pashkadez
+  become: true
+
+- name: download wordpress
+  ansible.builtin.shell: |
+    cat /home/pashkadez/wordpress/salt.tpl >> /home/pashkadez/wordpress/wp-config.php
+    rm /home/pashkadez/wordpress/salt.tpl
+  become: true
+
+- name: default.conf file
+  ansible.builtin.copy:
+    src: ../files/index.html
+    dest: /home/pashkadez/wordpress/index.html
+    mode: "0744"
+    owner: pashkadez
+  become: true
+
+- name: upload wordpress to bucket
+  ansible.builtin.shell: |
+    (cd /home/pashkadez && sudo -u pashkadez gsutil -m cp -r wordpress/* gs://{{bucket}})
+    (cd /home/pashkadez && sudo -u pashkadez rm latest.zip)
+    (cd /home/pashkadez && sudo -u pashkadez rm -rf wordpress) 
+  become: true
+
+- name: Enable rewrite module
+  apache2_module:
+    name: rewrite
+    state: present
+  become: true
+
+- name: default.conf file
+  ansible.builtin.copy:
+    src: ../files/000-default.conf
+    dest: /etc/apache2/sites-available/000-default.conf
+    mode: "0644"
+    owner: pashkadez
+  become: true
+  notify:
+  - restart apache

@@ -1,5 +1,5 @@
 terraform {
   backend "gcs" {
-    prefix  = "terraform/state"
+    prefix = "terraform/state"
   }
 }

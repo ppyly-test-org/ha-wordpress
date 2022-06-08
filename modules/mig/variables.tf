@@ -1,9 +1,6 @@
-variable "project" {
-  type = string
-}
-
-variable "region" {
-  type = string
+variable "machine_type" {
+  type    = string
+  default = "f1-micro"
 }
 
 variable "zone1" {
@@ -14,15 +11,15 @@ variable "zone2" {
   type = string
 }
 
-variable "bucket" {
-  type = string
-}
-
 variable "sa" {
   type = string
 }
 
-variable "domain" {
+variable "priv-subnet" {
+  type = string
+}
+
+variable "vpc-id" {
   type = string
 }
 
