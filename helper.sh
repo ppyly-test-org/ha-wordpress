@@ -192,3 +192,5 @@ cat $salt > ha-wordpress/packer/wordpress/files/salt.tpl
 source envvars.sh
 
 terraform init -backend-config=bucket=$TF_VAR_bucket
+terraform plan
+terraform apply --auto-approve
