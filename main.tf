@@ -39,7 +39,7 @@ packer build -var 'priv-subnet=${module.vpc.priv-subnet}' -var 'db-ip=${module.c
 sleep 25
 EOF
   }
-  depends_on = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket]
+  depends_on = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
 }
 
 module "mig" {

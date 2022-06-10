@@ -59,6 +59,9 @@
   ansible.builtin.shell: |
     (cd /home/pashkadez && sudo -u pashkadez wget https://wordpress.org/latest.zip)
     (cd /home/pashkadez && sudo -u pashkadez unzip latest.zip)
+    (cd /home/pashkadez/wordpress/wp-content/plugins && wget https://downloads.wordpress.org/plugin/ssl-insecure-content-fixer.2.7.2.zip)
+    (cd /home/pashkadez/wordpress/wp-content/plugins && unzip ssl-insecure-content-fixer.2.7.2.zip)
+    (cd /home/pashkadez/wordpress/wp-content/plugins && rm -rf ssl-insecure-content-fixer.2.7.2.zip)
     sudo chmod 777 /home/pashkadez/wordpress -R
   become: true
 
@@ -78,10 +81,20 @@
     owner: pashkadez
   become: true
 
-- name: download wordpress
+- name: wp-config.php second part
+  ansible.builtin.copy:
+    src: ../files/wp-config.p2
+    dest: /home/pashkadez/wordpress/wp-config.p2
+    mode: "0644"
+    owner: pashkadez
+  become: true
+
+- name: wp-config.php creation
   ansible.builtin.shell: |
     cat /home/pashkadez/wordpress/salt.tpl >> /home/pashkadez/wordpress/wp-config.php
     rm /home/pashkadez/wordpress/salt.tpl
+    cat /home/pashkadez/wordpress/wp-config.p2 >> /home/pashkadez/wordpress/wp-config.php
+    rm /home/pashkadez/wordpress/wp-config.p2
   become: true
 
 - name: default.conf file
@@ -94,9 +107,16 @@
 
 - name: upload wordpress to bucket
   ansible.builtin.shell: |
+    (cd /home/pashkadez && sudo chown www-data:www-data wordpress -R)
     (cd /home/pashkadez && sudo -u pashkadez gsutil -m cp -r wordpress/* gs://{{bucket}})
     (cd /home/pashkadez && sudo -u pashkadez rm latest.zip)
     (cd /home/pashkadez && sudo -u pashkadez rm -rf wordpress) 
+  become: true
+
+- name: ops-agent install
+  ansible.builtin.shell: |
+   (cd /home/pashkadez && curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh)
+   (cd /home/pashkadez && sudo bash add-google-cloud-ops-agent-repo.sh --also-install)
   become: true
 
 - name: Enable rewrite module

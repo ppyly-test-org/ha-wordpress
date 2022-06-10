@@ -8,7 +8,7 @@ resource "google_compute_managed_ssl_certificate" "sslCertificate" {
   name = "google-cert"
 
   managed {
-    domains = ["${var.domain}."]
+    domains = ["${var.domain}.", "www.${var.domain}."]
   }
   lifecycle {
   }
@@ -30,4 +30,12 @@ resource "google_dns_record_set" "dns-records" {
   lifecycle {
   }
   depends_on = [google_compute_global_address.static-ip]
+}
+
+resource "google_dns_record_set" "cname" {
+  name         = "www.${var.domain}."
+  managed_zone = google_dns_managed_zone.dns-zone.name
+  type         = "CNAME"
+  ttl          = 300
+  rrdatas      = ["${var.domain}."]
 }
