@@ -23,27 +23,15 @@ resource "google_compute_firewall" "allow_internal_ssh" {
   target_tags = ["wp", "packer"]
 }
 
-resource "google_compute_firewall" "allow_udp_access" {
-  name    = "allow-udp-access"
-  network = google_compute_network.network.self_link
-
-  allow {
-    protocol = "udp"
-    ports    = ["443"]
-  }
-  # target_tags   = ["wp"]
-  source_ranges = ["0.0.0.0/0"]
-}
-
 resource "google_compute_firewall" "allow_http_access" {
   name    = "allow-http-access"
   network = google_compute_network.network.self_link
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443"]
+    ports    = ["80"]
   }
-  # target_tags   = ["wp"]
+  target_tags   = ["wp"]
   source_ranges = ["0.0.0.0/0"]
 }
 
