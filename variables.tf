@@ -29,3 +29,19 @@ variable "domain" {
 variable "image" {
   type = string
 }
+
+variable "mig-min" {
+  type = string
+}
+
+variable "mig-max" {
+  type = string
+}
+
+variable "name-base" {
+  type = string
+}
+
+variable "mig-tags" {
+  type = list(string)
+}

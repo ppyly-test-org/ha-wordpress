@@ -19,13 +19,15 @@ module "storage" {
 }
 
 module "vpc" {
-  source = "./modules/vpc/"
-  zone1  = var.zone1
+  source   = "./modules/vpc/"
+  zone1    = var.zone1
+  mig-tags = var.mig-tags
 }
 
 module "cloud-sql" {
   source     = "./modules/cloud-sql/"
   vpc-id     = module.vpc.vpc-id
+  name-base  = var.name-base
   zone1      = var.zone1
   zone2      = var.zone2
   password   = data.google_secret_manager_secret_version.gibberish.secret_data
@@ -44,6 +46,10 @@ EOF
 
 module "mig" {
   source      = "./modules/mig/"
+  mig-min     = var.mig-min
+  mig-max     = var.mig-max
+  name-base   = var.name-base
+  tags        = var.mig-tags
   zone1       = var.zone1
   zone2       = var.zone2
   sa          = var.sa

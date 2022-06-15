@@ -1,10 +1,10 @@
 resource "google_compute_region_autoscaler" "autoscaler" {
-  name   = "my-region-autoscaler"
+  name   = "${var.name-base}-region-autoscaler"
   target = google_compute_region_instance_group_manager.wp-mig.id
 
   autoscaling_policy {
-    max_replicas    = 4
-    min_replicas    = 2
+    max_replicas    = var.mig-max
+    min_replicas    = var.mig-min
     cooldown_period = 60
 
     cpu_utilization {
@@ -14,8 +14,8 @@ resource "google_compute_region_autoscaler" "autoscaler" {
 }
 
 resource "google_compute_instance_template" "default" {
-  name = "wpserver-template"
-  tags = ["wp"]
+  name = "${var.name-base}r-template"
+  tags = var.tags
 
   machine_type   = var.machine_type
   can_ip_forward = false
@@ -46,7 +46,7 @@ resource "google_compute_instance_template" "default" {
 
 
 resource "google_compute_health_check" "autohealing" {
-  name                = "autohealing-health-check"
+  name                = "${var.name-base}-health-check"
   check_interval_sec  = 10
   timeout_sec         = 9
   healthy_threshold   = 2
@@ -59,9 +59,9 @@ resource "google_compute_health_check" "autohealing" {
 }
 
 resource "google_compute_region_instance_group_manager" "wp-mig" {
-  name = "wp-mig"
+  name = "${var.name-base}-mig"
 
-  base_instance_name        = "wp"
+  base_instance_name        = var.name-base
   distribution_policy_zones = [var.zone1, var.zone2]
 
   version {

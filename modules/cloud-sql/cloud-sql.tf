@@ -1,5 +1,5 @@
 resource "google_sql_database_instance" "wordpress-db" {
-  name                = "wp-master-8123341890345"
+  name                = "${var.name-base}-master"
   database_version    = var.sql-version
   depends_on          = [google_service_networking_connection.master-private-vpc-db-connection]
   deletion_protection = "false"
@@ -7,7 +7,7 @@ resource "google_sql_database_instance" "wordpress-db" {
     location_preference {
       zone = var.zone1
     }
-    tier = var.tier
+    tier = var.db-tier
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.vpc-id
@@ -20,7 +20,7 @@ resource "google_sql_database_instance" "wordpress-db" {
 }
 
 resource "google_sql_database_instance" "wordpress-db-replica" {
-  name                 = "wp-slave-1832341234539084"
+  name                 = "${var.name-base}-slave"
   database_version     = var.sql-version
   depends_on           = [google_service_networking_connection.replica-private-vpc-db-connection]
   deletion_protection  = "false"
@@ -29,7 +29,7 @@ resource "google_sql_database_instance" "wordpress-db-replica" {
     location_preference {
       zone = var.zone2
     }
-    tier = var.tier
+    tier = var.db-tier
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.vpc-id
@@ -41,7 +41,7 @@ resource "google_sql_database_instance" "wordpress-db-replica" {
 }
 
 resource "google_sql_user" "users" {
-  name     = var.wordpress
+  name     = var.username
   instance = google_sql_database_instance.wordpress-db.name
   host     = "%"
   password   = var.password
@@ -49,7 +49,7 @@ resource "google_sql_user" "users" {
 }
 
 resource "google_sql_database" "wordpress-database" {
-  name     = var.wordpress
+  name     = var.db-name
   instance = google_sql_database_instance.wordpress-db.name
 }
 

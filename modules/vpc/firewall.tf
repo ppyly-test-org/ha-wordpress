@@ -11,7 +11,7 @@ resource "google_compute_firewall" "allow_access" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-resource "google_compute_firewall" "allow_internal_ssh" {
+resource "google_compute_firewall" "allow_packer_ssh" {
   name    = "allow-internal-ssh"
   network = google_compute_network.network.self_link
 
@@ -20,7 +20,19 @@ resource "google_compute_firewall" "allow_internal_ssh" {
     ports    = ["22"]
   }
   source_tags = ["bastion"]
-  target_tags = ["wp", "packer"]
+  target_tags = ["packer"]
+}
+
+resource "google_compute_firewall" "allow_mig_ssh" {
+  name    = "allow-internal-ssh"
+  network = google_compute_network.network.self_link
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_tags = ["bastion"]
+  target_tags = var.mig-tags
 }
 
 resource "google_compute_firewall" "allow_http_access" {
@@ -31,7 +43,7 @@ resource "google_compute_firewall" "allow_http_access" {
     protocol = "tcp"
     ports    = ["80"]
   }
-  target_tags   = ["wp"]
+  target_tags   = var.mig-tags
   source_ranges = ["0.0.0.0/0"]
 }
 
@@ -43,5 +55,5 @@ resource "google_compute_firewall" "allow-sql" {
     protocol = "tcp"
     ports    = ["3306"]
   }
-  source_tags = ["wp"]
+  source_tags = var.mig-tags
 }
