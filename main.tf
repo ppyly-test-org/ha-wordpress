@@ -34,14 +34,36 @@ module "cloud-sql" {
   depends_on = [module.vpc.priv-subnet]
 }
 
-resource "null_resource" "packer" {
-  provisioner "local-exec" {
-    command = <<EOF
-packer build -var 'priv-subnet=${module.vpc.priv-subnet}' -var 'db-ip=${module.cloud-sql.db-ip}' -var 'bucket=${module.storage.bucket}' -var 'project=${var.project}' -var 'zone=${var.zone1}' -var 'password=${data.google_secret_manager_secret_version.gibberish.secret_data}' packer/packer.pkr.hcl
-sleep 25
-EOF
-  }
-  depends_on = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
+module "elk-packer" {
+  source               = "./modules/packer/"
+  subnet               = module.vpc.priv-subnet
+  project              = var.project
+  zone                 = var.zone1
+  image-name           = var.elk-image
+  source-image         = var.source-image
+  bastion-ip           = module.vpc.bastion-ip
+  ssh-private-key-path = var.ssh-private-key-path
+  ssh-username         = var.ssh-username
+  packer-machine-type  = var.packer-machine-type
+  playbook             = var.elk-playbook
+  ansible-extra-vars   = ""
+  depends_on           = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
+}
+
+module "wp-packer" {
+  source               = "./modules/packer/"
+  subnet               = module.vpc.priv-subnet
+  project              = var.project
+  zone                 = var.zone1
+  image-name           = var.wp-image
+  source-image         = var.source-image
+  bastion-ip           = module.vpc.bastion-ip
+  ssh-private-key-path = var.ssh-private-key-path
+  ssh-username         = var.ssh-username
+  packer-machine-type  = var.packer-machine-type
+  playbook             = var.wp-playbook
+  ansible-extra-vars   = "bucket=${module.storage.bucket} db_ip=${module.cloud-sql.db-ip} password=${data.google_secret_manager_secret_version.gibberish.secret_data}"
+  depends_on           = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
 }
 
 module "mig" {
@@ -55,8 +77,8 @@ module "mig" {
   sa          = var.sa
   vpc-id      = module.vpc.vpc-id
   priv-subnet = module.vpc.priv-subnet
-  image       = var.image
-  depends_on  = [null_resource.packer]
+  image       = var.wp-image
+  depends_on  = [module.wp-packer]
 }
 
 module "cloud-lb" {

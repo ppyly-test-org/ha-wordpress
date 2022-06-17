@@ -186,7 +186,7 @@ export TF_VAR_domain=$DOMAIN
 EOF
 
 salt=$(curl https://api.wordpress.org/secret-key/1.1/salt)
-cat $salt > ha-wordpress/packer/wordpress/files/salt.tpl
+cat $salt > ha-wordpress/ansible/wordpress/files/salt.tpl
 
 
 source envvars.sh

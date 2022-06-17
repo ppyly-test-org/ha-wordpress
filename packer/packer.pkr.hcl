@@ -7,15 +7,7 @@ packer {
   }
 }
 
-variable "db-ip" {
-  type = string
-}
-
 variable "priv-subnet" {
-  type = string
-}
-
-variable "bucket" {
   type = string
 }
 
@@ -27,39 +19,63 @@ variable "zone" {
   type = string
 }
 
-variable "password" {
+variable "image-name" {
   type = string
 }
 
-# variable "salt_result" {
-#   type = string
-# }
+variable "source-image" {
+  type = string
+}
 
-source "googlecompute" "wp-conf" {
+variable "bastion-ip" {
+  type = string
+}
+
+variable "playbook" {
+  type = string
+}
+
+variable "ansible-extra-vars" {
+  type = string
+}
+
+variable "ssh-private-key-path" {
+  type = string
+}
+
+variable "username" {
+  type = string
+}
+
+variable "machine-type" {
+  type = string
+}
+
+source "googlecompute" "conf" {
   project_id                   = var.project
-  source_image                 = "ubuntu-2004-focal-v20220419"
-  machine_type                 = "e2-medium"
-  ssh_username                 = "pashkadez"
-  ssh_private_key_file         = "~/.ssh/id_rsa"
-  ssh_bastion_username         = "pashkadez"
-  ssh_bastion_host             = "34.116.153.6"
-  ssh_bastion_private_key_file = "~/.ssh/id_rsa"
+  source_image                 = var.source-image
+  machine_type                 = var.machine-type
+  ssh_username                 = var.username
+  ssh_private_key_file         = var.ssh-private-key-path
+  ssh_bastion_username         = var.username
+  ssh_bastion_host             = var.bastion-ip
+  ssh_bastion_private_key_file = var.ssh-private-key-path
   zone                         = var.zone
   tags                         = ["packer"]
   use_internal_ip              = true
   subnetwork                   = var.priv-subnet
-  image_name                   = "configured-ubuntu-image"
+  image_name                   = var.image-name
 }
 
 build {
-  sources = ["sources.googlecompute.wp-conf"]
+  sources = ["sources.googlecompute.conf"]
 
   provisioner "ansible" {
-    playbook_file = "packer/playbook.yml"
+    playbook_file = var.playbook
     extra_arguments = [
+      # "-vvvv",
       "--extra-vars",
-      "bucket=${var.bucket} db_ip=${var.db-ip} password=${var.password}"
+      "${var.ansible-extra-vars}"
     ]
-
   }
 }

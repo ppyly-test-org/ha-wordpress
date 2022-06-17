@@ -16,10 +16,6 @@
     sudo echo user_allow_other >> /etc/fuse.conf
   become: true
 
-# - name: get salt
-#   ansible.builtin.shell: "curl https://api.wordpress.org/secret-key/1.1/salt/"
-#   register: salt_result
-
 - name: wordpress dir
   ansible.builtin.file:
     path: /mnt/wordpress

@@ -12,7 +12,7 @@ resource "google_compute_firewall" "allow_access" {
 }
 
 resource "google_compute_firewall" "allow_packer_ssh" {
-  name    = "allow-internal-ssh"
+  name    = "allow-packer-ssh"
   network = google_compute_network.network.self_link
 
   allow {
@@ -24,7 +24,7 @@ resource "google_compute_firewall" "allow_packer_ssh" {
 }
 
 resource "google_compute_firewall" "allow_mig_ssh" {
-  name    = "allow-internal-ssh"
+  name    = "allow-mig-ssh"
   network = google_compute_network.network.self_link
 
   allow {

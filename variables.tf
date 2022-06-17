@@ -26,7 +26,7 @@ variable "domain" {
   type = string
 }
 
-variable "image" {
+variable "wp-image" {
   type = string
 }
 
@@ -44,4 +44,32 @@ variable "name-base" {
 
 variable "mig-tags" {
   type = list(string)
+}
+
+variable "source-image" {
+  type = string
+}
+
+variable "ssh-private-key-path" {
+  type = string
+}
+
+variable "ssh-username" {
+  type = string
+}
+
+variable "packer-machine-type" {
+  type = string
+}
+
+variable "wp-playbook" {
+  type = string
+}
+
+variable "elk-image" {
+  type = string
+}
+
+variable "elk-playbook" {
+  type = string
 }

@@ -41,9 +41,9 @@ resource "google_sql_database_instance" "wordpress-db-replica" {
 }
 
 resource "google_sql_user" "users" {
-  name     = var.username
-  instance = google_sql_database_instance.wordpress-db.name
-  host     = "%"
+  name       = var.username
+  instance   = google_sql_database_instance.wordpress-db.name
+  host       = "%"
   password   = var.password
   depends_on = [google_sql_database_instance.wordpress-db]
 }
@@ -66,6 +66,7 @@ resource "google_service_networking_connection" "master-private-vpc-db-connectio
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private-ip.name]
 }
+
 resource "google_service_networking_connection" "replica-private-vpc-db-connection" {
   network                 = var.vpc-id
   service                 = "servicenetworking.googleapis.com"

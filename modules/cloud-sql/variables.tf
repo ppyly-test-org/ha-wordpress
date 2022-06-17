@@ -29,11 +29,11 @@ variable "name-base" {
 }
 
 variable "username" {
-  type = string
+  type    = string
   default = "wordpress"
 }
 
 variable "db-name" {
-  type = string
+  type    = string
   default = "wordpress"
 }
