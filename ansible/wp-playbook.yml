@@ -1,4 +1,5 @@
 - name : wp
   hosts: all
   roles:
+    - elastic-repo
     - wordpress

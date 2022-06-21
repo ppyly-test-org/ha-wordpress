@@ -1,2 +1,10 @@
 ---
 # tasks file for elastic-gold
+- name: Install a list of packages
+  ansible.builtin.apt:
+    pkg:
+    - openjdk-17-jre
+    # - elasticsearch
+    - logstash
+    - kibana
+  become: true  

@@ -1,4 +1,5 @@
-- name : wp
+- name : elk
   hosts: all
   roles:
+    - elastic-repo
     - elastic-gold

@@ -21,17 +21,7 @@ module "storage" {
 module "vpc" {
   source   = "./modules/vpc/"
   zone1    = var.zone1
-  mig-tags = var.mig-tags
-}
-
-module "cloud-sql" {
-  source     = "./modules/cloud-sql/"
-  vpc-id     = module.vpc.vpc-id
-  name-base  = var.name-base
-  zone1      = var.zone1
-  zone2      = var.zone2
-  password   = data.google_secret_manager_secret_version.gibberish.secret_data
-  depends_on = [module.vpc.priv-subnet]
+  mig-tags = var.wp-mig-tags
 }
 
 module "elk-packer" {
@@ -47,7 +37,35 @@ module "elk-packer" {
   packer-machine-type  = var.packer-machine-type
   playbook             = var.elk-playbook
   ansible-extra-vars   = ""
-  depends_on           = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
+  depends_on           = [module.vpc]
+}
+
+module "elastic-mig" {
+  source            = "./modules/mig/"
+  name-base         = "elastic"
+  tags              = ["wp", "elastic"]
+  zone1             = var.zone1
+  zone2             = var.zone2
+  sa                = var.sa
+  vpc-id            = module.vpc.vpc-id
+  machine_type      =    "e2-medium"
+  priv-subnet       = module.vpc.priv-subnet
+  image             = var.elk-image
+  scopes            = var.wp-mig-scopes
+  script            = file("scripts/elk-mig.sh")
+  health-check-port = "9200"
+  target_size = 3
+  depends_on        = [module.elk-packer]
+}
+
+module "cloud-sql" {
+  source     = "./modules/cloud-sql/"
+  vpc-id     = module.vpc.vpc-id
+  name-base  = var.wp-name-base
+  zone1      = var.zone1
+  zone2      = var.zone2
+  password   = data.google_secret_manager_secret_version.gibberish.secret_data
+  depends_on = [module.vpc.priv-subnet]
 }
 
 module "wp-packer" {
@@ -66,26 +84,46 @@ module "wp-packer" {
   depends_on           = [module.cloud-sql.db-ip, module.vpc.priv-subnet, module.storage.bucket, module.static]
 }
 
-module "mig" {
-  source      = "./modules/mig/"
-  mig-min     = var.mig-min
-  mig-max     = var.mig-max
-  name-base   = var.name-base
-  tags        = var.mig-tags
-  zone1       = var.zone1
-  zone2       = var.zone2
-  sa          = var.sa
-  vpc-id      = module.vpc.vpc-id
-  priv-subnet = module.vpc.priv-subnet
-  image       = var.wp-image
-  depends_on  = [module.wp-packer]
+module "wp-mig" {
+  source            = "./modules/mig/"
+  name-base         = var.wp-name-base
+  tags              = var.wp-mig-tags
+  zone1             = var.zone1
+  zone2             = var.zone2
+  sa                = var.sa
+  vpc-id            = module.vpc.vpc-id
+  priv-subnet       = module.vpc.priv-subnet
+  image             = var.wp-image
+  scopes            = var.wp-mig-scopes
+  health-check-path = "/index.html"
+  script            = file("scripts/wp-mig.sh")
+  depends_on        = [module.wp-packer]
+}
+
+resource "google_compute_region_autoscaler" "autoscaler" {
+  name   = "${var.wp-name-base}-region-autoscaler"
+  target = module.wp-mig.mig-id
+
+  autoscaling_policy {
+    max_replicas    = 4
+    min_replicas    = 2
+    cooldown_period = 60
+
+    cpu_utilization {
+      target = 1
+    }
+  }
+  depends_on = [module.wp-mig]
 }
 
 module "cloud-lb" {
   source      = "./modules/cloud-lb/"
-  mig         = module.mig.wp-mig
-  healthcheck = module.mig.wp-heath
+  mig         = module.wp-mig.mig
+  healthcheck = module.wp-mig.heath
   ssl-cert    = module.static.ssl-cert
   static-ip   = module.static.static-ip
-  depends_on  = [module.mig]
+  depends_on  = [module.wp-mig]
 }
+
+
+#  echo $(gcloud compute instances list --filter='name ~ wp*' --format 'csv[no-heading](INTERNAL_IP)') | sed -e 's/ /, /g'

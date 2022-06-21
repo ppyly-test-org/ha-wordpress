@@ -49,6 +49,7 @@
     - php-bcmath
     - php-imagick
     - php-json
+    - filebeat
   become: true  
 
 - name: download wordpress

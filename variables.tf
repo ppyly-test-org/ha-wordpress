@@ -30,19 +30,11 @@ variable "wp-image" {
   type = string
 }
 
-variable "mig-min" {
+variable "wp-name-base" {
   type = string
 }
 
-variable "mig-max" {
-  type = string
-}
-
-variable "name-base" {
-  type = string
-}
-
-variable "mig-tags" {
+variable "wp-mig-tags" {
   type = list(string)
 }
 
@@ -72,4 +64,8 @@ variable "elk-image" {
 
 variable "elk-playbook" {
   type = string
+}
+
+variable "wp-mig-scopes" {
+  type = list(string)
 }

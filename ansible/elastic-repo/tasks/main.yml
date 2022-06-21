@@ -1,0 +1,13 @@
+---
+# tasks file for elastic-repo
+- name: elastic
+  ansible.builtin.shell: |
+    wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+    echo "deb https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-8.x.list
+  become: true
+
+- name: update & upgrade
+  ansible.builtin.apt:
+    upgrade: yes
+    update_cache: 'true'
+  become: true
