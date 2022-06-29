@@ -32,9 +32,9 @@ resource "google_compute_health_check" "autohealing" {
   healthy_threshold   = var.healthy_threshold
   unhealthy_threshold = var.unhealthy_threshold
 
-  http_health_check {
-    request_path = var.health-check-path
-    port         = var.health-check-port
+  tcp_health_check {
+    # request_path = var.health-check-path
+    port = var.health-check-port
   }
 }
 

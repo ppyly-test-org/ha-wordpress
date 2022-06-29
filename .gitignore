@@ -4,3 +4,4 @@ sa-private-key.json
 envvars.sh
 salt.tpl
 test.tf
+*.tfstate

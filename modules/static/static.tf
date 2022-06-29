@@ -4,6 +4,13 @@ resource "google_compute_global_address" "static-ip" {
   }
 }
 
+resource "google_compute_address" "static-ip1" {
+  name = "static-ip1"
+  region        = "europe-central2"
+  lifecycle {
+  }
+}
+
 resource "google_compute_managed_ssl_certificate" "sslCertificate" {
   name = "google-cert"
 
@@ -30,6 +37,17 @@ resource "google_dns_record_set" "dns-records" {
   lifecycle {
   }
   depends_on = [google_compute_global_address.static-ip]
+}
+
+resource "google_dns_record_set" "kibana-dns-records" {
+  managed_zone = google_dns_managed_zone.dns-zone.name
+  name         = "kibana.${var.domain}."
+  type         = "A"
+  rrdatas      = [google_compute_address.static-ip1.address]
+  ttl          = 300
+  lifecycle {
+  }
+  depends_on = [google_compute_address.static-ip1]
 }
 
 resource "google_dns_record_set" "cname" {

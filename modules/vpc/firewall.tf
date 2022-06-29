@@ -54,7 +54,6 @@ resource "google_compute_firewall" "allow_elasticsearch_connection" {
     protocol = "tcp"
     ports    = ["9200-9210", "9300-9310"]
   }
-  source_tags = ["elastic", "logstash", "kibana"]
   target_tags = ["elastic"]
 }
 
@@ -67,5 +66,15 @@ resource "google_compute_firewall" "allow_kibana_connection" {
     ports    = ["5601"]
   }
   source_ranges = ["0.0.0.0/0"]
-  target_tags = ["kibana"]
+  target_tags   = ["kibana"]
+}
+
+resource "google_compute_firewall" "allow_icmp_connection" {
+  name    = "allow-icmp"
+  network = google_compute_network.network.self_link
+
+  allow {
+    protocol = "icmp"
+  }
+  source_ranges = ["0.0.0.0/0"]
 }

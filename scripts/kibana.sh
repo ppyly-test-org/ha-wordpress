@@ -1,185 +1,146 @@
-#!/bin/bash
+# #!/bin/bash
 
-sudo apt update && sudo apt install kibana -y
+sudo apt update && sudo apt install elasticsearch mc -y
+yes | sudo /usr/share/elasticsearch/bin/elasticsearch-reconfigure-node --enrollment-token $(gcloud secrets versions access latest --secret="node-token")
 
-ES_HOSTS=$(echo $(gcloud compute instances list --filter='name ~ elastic*' --format 'csv[no-heading](INTERNAL_IP)' | awk '{ printf "\"http://%s:9200\", ", $0 }'))
-KI_HOSTNAME=$(hostname)
+sudo cat << EOF >> /etc/elasticsearch/elasticsearch.yml
+node.roles: [ ]
+EOF
 
-sudo cat << EOF > /etc/kibana/kibana.yml
-# For more configuration options see the configuration guide for Kibana in
-# https://www.elastic.co/guide/index.html
+sudo systemctl start elasticsearch.service
+echo -n $(sudo /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana) | gcloud secrets versions add kibana-token --data-file=-
+sudo /usr/share/kibana/bin/kibana-setup -t $(gcloud secrets versions access latest --secret="kibana-token")
 
-# =================== System: Kibana Server ===================
-# Kibana is served by a back end server. This setting specifies the port to use.
+sudo cat << EOF >> /etc/kibana/kibana.yml
 server.port: 5601
-
-# Specifies the address to which the Kibana server will bind. IP addresses and host names are both valid values.
-# The default is 'localhost', which usually means remote machines will not be able to connect.
-# To allow connections from remote users, set this parameter to a non-loopback address.
 server.host: "0.0.0.0"
+EOF
 
-# Enables you to specify a path to mount Kibana at if you are running behind a proxy.
-# Use the `server.rewriteBasePath` setting to tell Kibana if it should remove the basePath
-# from requests it receives, and to prevent a deprecation warning at startup.
-# This setting cannot end in a slash.
-#server.basePath: ""
+sudo systemctl start kibana.service
 
-# Specifies whether Kibana should rewrite requests that are prefixed with
-# `server.basePath` or require that they are rewritten by your reverse proxy.
-# Defaults to `false`.
-#server.rewriteBasePath: false
+(cd /opt && wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.3.0/oauth2-proxy-v7.3.0.linux-amd64.tar.gz)
+(cd /opt && tar -xzf oauth2-proxy-v7.3.0.linux-amd64.tar.gz)
 
-# Specifies the public URL at which Kibana is available for end users. If
-# `server.basePath` is configured this URL should end with the same basePath.
-#server.publicBaseUrl: ""
+COOKIE=$(openssl rand -base64 16)
+GH_CLIENT_ID=$(gcloud secrets versions access latest --secret='gh-client-id')
+GH_SECRET=$(gcloud secrets versions access latest --secret='gh-secret')
+sudo cat << EOF > /opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
+#!/bin/sh
+/opt/oauth2-proxy-v7.3.0.linux-amd64/oauth2-proxy \\
+--email-domain="github.com"  \\
+--http-address="http://127.0.0.1:2345"  \\
+--upstream="https://kibana.ppyly.pp.ua" \\
+--redirect-url="https://kibana.ppyly.pp.ua/oauth2/callback" \\
+--cookie-secret="$COOKIE" \\
+--cookie-secure=false \\
+--provider=github \\
+--client-id="$GH_CLIENT_ID" \\
+--client-secret="$GH_SECRET"
+--scope "user:email"
+EOF
+sudo chmod +x /opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
 
-# The maximum payload size in bytes for incoming server requests.
-#server.maxPayload: 1048576
+sudo cat << EOF > /etc/systemd/system/oauth2.service
+[Unit]
+Description=oauth2 service
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+WorkingDirectory=/opt/oauth2-proxy-v7.3.0.linux-amd64/
+ExecStart=/opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
+[Install]
+WantedBy=multi-user.target
+EOF
 
-# The Kibana server's name. This is used for display purposes.
-#server.name: "your-hostname"
+sudo apt install -y nginx
+mkdir /etc/nginx/ssl
+openssl req -newkey rsa:4096 \
+            -x509 \
+            -sha256 \
+            -days 3650 \
+            -nodes \
+            -out /etc/nginx/ssl/certificate.crt \
+            -keyout /etc/nginx/ssl/private.key \
+            -subj "/C=UA/ST=Volyn/L=NV/O=Security/OU=IT/CN=kibana.ppyly.pp.ua"
 
-# =================== System: Kibana Server (Optional) ===================
-# Enables SSL and paths to the PEM-format SSL certificate and SSL key files, respectively.
-# These settings enable SSL for outgoing requests from the Kibana server to the browser.
-#server.ssl.enabled: false
-#server.ssl.certificate: /path/to/your/server.crt
-#server.ssl.key: /path/to/your/server.key
+sudo chmod 655 /etc/nginx/ssl -R
 
-# =================== System: Elasticsearch ===================
-# The URLs of the Elasticsearch instances to use for all your queries.
-# elasticsearch.hosts: [$ES_HOSTS]
+sudo cat << EOF > /etc/nginx/nginx.conf
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
 
-# If your Elasticsearch is protected with basic authentication, these settings provide
-# the username and password that the Kibana server uses to perform maintenance on the Kibana
-# index at startup. Your Kibana users still need to authenticate with Elasticsearch, which
-# is proxied through the Kibana server.
-#elasticsearch.username: "kibana_system"
-#elasticsearch.password: "pass"
-
-# Kibana can also authenticate to Elasticsearch via "service account tokens".
-# Service account tokens are Bearer style tokens that replace the traditional username/password based configuration.
-# Use this token instead of a username/password.
-elasticsearch.serviceAccountToken: "eyJ2ZXIiOiI4LjIuMyIsImFkciI6WyIxMC4xMC4wLjEwOjkyMDAiXSwiZmdyIjoiM2JjOGMwMDIzNDJmYzUyM2YwMDA4ZjhhOTExN2ZiYzYyY2QyMjFjNzRiMWYxMDE0MGQyNzBkNmQ2Nzc2OWUwYSIsImtleSI6ImJvaHBoWUVCTWFhMVRnXzh0Z2VVOlVROWczT2ZsU2tTcGZ5bnhsLVZnM0EifQ=="
-
-# Time in milliseconds to wait for Elasticsearch to respond to pings. Defaults to the value of
-# the elasticsearch.requestTimeout setting.
-#elasticsearch.pingTimeout: 1500
-
-# Time in milliseconds to wait for responses from the back end or Elasticsearch. This value
-# must be a positive integer.
-#elasticsearch.requestTimeout: 30000
-
-# The maximum number of sockets that can be used for communications with elasticsearch.
-# Defaults to `Infinity`.
-#elasticsearch.maxSockets: 1024
-
-# Specifies whether Kibana should use compression for communications with elasticsearch
-# Defaults to `false`.
-#elasticsearch.compression: false
-
-# List of Kibana client-side headers to send to Elasticsearch. To send *no* client-side
-# headers, set this value to [] (an empty list).
-#elasticsearch.requestHeadersWhitelist: [ authorization ]
-
-# Header names and values that are sent to Elasticsearch. Any custom headers cannot be overwritten
-# by client-side headers, regardless of the elasticsearch.requestHeadersWhitelist configuration.
-#elasticsearch.customHeaders: {}
-
-# Time in milliseconds for Elasticsearch to wait for responses from shards. Set to 0 to disable.
-#elasticsearch.shardTimeout: 30000
-
-# =================== System: Elasticsearch (Optional) ===================
-# These files are used to verify the identity of Kibana to Elasticsearch and are required when
-# xpack.security.http.ssl.client_authentication in Elasticsearch is set to required.
-#elasticsearch.ssl.certificate: /path/to/your/client.crt
-#elasticsearch.ssl.key: /path/to/your/client.key
-
-# Enables you to specify a path to the PEM file for the certificate
-# authority for your Elasticsearch instance.
-#elasticsearch.ssl.certificateAuthorities: [ "/path/to/your/CA.pem" ]
-
-# To disregard the validity of SSL certificates, change this setting's value to 'none'.
-#elasticsearch.ssl.verificationMode: full
-
-# =================== System: Logging ===================
-# Set the value of this setting to off to suppress all logging output, or to debug to log everything. Defaults to 'info'
-#logging.root.level: debug
-
-# Enables you to specify a file where Kibana stores log output.
-logging:
-  appenders:
-    file:
-      type: file
-      fileName: /var/log/kibana/kibana.log
-      layout:
-        type: json
-  root:
-    appenders:
-      - default
-      - file
-#  layout:
-#    type: json
-
-# Logs queries sent to Elasticsearch.
-#logging.loggers:
-#  - name: elasticsearch.query
-#    level: debug
-
-# Logs http responses.
-#logging.loggers:
-#  - name: http.server.response
-#    level: debug
-
-# Logs system usage information.
-#logging.loggers:
-#  - name: metrics.ops
-#    level: debug
-
-# =================== System: Other ===================
-# The path where Kibana stores persistent data not saved in Elasticsearch. Defaults to data
-#path.data: data
-
-# Specifies the path where Kibana creates the process ID file.
-pid.file: /run/kibana/kibana.pid
-
-# Set the interval in milliseconds to sample system and process performance
-# metrics. Minimum is 100ms. Defaults to 5000ms.
-#ops.interval: 5000
-
-# Specifies locale to be used for all localizable strings, dates and number formats.
-# Supported languages are the following: English (default) "en", Chinese "zh-CN", Japanese "ja-JP", French "fr-FR".
-#i18n.locale: "en"
-
-# =================== Frequently used (Optional)===================
-
-# =================== Saved Objects: Migrations ===================
-# Saved object migrations run at startup. If you run into migration-related issues, you might need to adjust these settings.
-
-# The number of documents migrated at a time.
-# If Kibana can't start up or upgrade due to an Elasticsearch `circuit_breaking_exception`,
-# use a smaller batchSize value to reduce the memory pressure. Defaults to 1000 objects per batch.
-#migrations.batchSize: 1000
-
-# The maximum payload size for indexing batches of upgraded saved objects.
-# To avoid migrations failing due to a 413 Request Entity Too Large response from Elasticsearch.
-# This value should be lower than or equal to your Elasticsearch cluster’s `http.max_content_length`
-# configuration option. Default: 100mb
-#migrations.maxBatchSizeBytes: 100mb
-
-# The number of times to retry temporary migration failures. Increase the setting
-# if migrations fail frequently with a message such as `Unable to complete the [...] step after
-# 15 attempts, terminating`. Defaults to 15
-#migrations.retryAttempts: 15
-
-# =================== Search Autocomplete ===================
-# Time in milliseconds to wait for autocomplete suggestions from Elasticsearch.
-# This value must be a whole number greater than zero. Defaults to 1000ms
-#data.autocomplete.valueSuggestions.timeout: 1000
-
-# Maximum number of documents loaded by each shard to generate autocomplete suggestions.
-# This value must be a whole number greater than zero. Defaults to 100_000
-#data.autocomplete.valueSuggestions.terminateAfter: 100000
+events {
+        worker_connections 768;
+}
+http {
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+        ssl_prefer_server_ciphers on;
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+        gzip on;
+        include /etc/nginx/conf.d/*.conf;
+}
+EOF
 
 
-# gcloud compute project-info add-metadata --metadata=kibanatoken=$(/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token
+sudo cat << "EOF" > /etc/nginx/conf.d/kibana.conf
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name kibana.ppyly.pp.ua;
+        rewrite ^ https://$server_name$request_uri? permanent;
+}
+
+server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+        server_name kibana.ppyly.pp.ua;
+        ssl_certificate     /etc/nginx/ssl/certificate.crt;
+        ssl_certificate_key /etc/nginx/ssl/private.key;
+        ssl_prefer_server_ciphers on;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers kEECDH+AES128:kEECDH:kEDH:-3DES:kRSA+AES128:kEDH+3DES:DES-CBC3-SHA:!RC4:!aNULL:!eNULL:!MD5:!EXPORT:!LOW:!SEED:!CAMELLIA:!IDEA:!PSK:!SRP:!SSLv2;
+        ssl_session_cache    shared:SSL:64m;
+        ssl_session_timeout  24h;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains;";
+        add_header Content-Security-Policy-Report-Only "default-src https:; script-src https: 'unsafe-eval' 'unsafe-inline'; style-src https: 'unsafe-inline'; img-src https: data:; font-src https: data:; report-uri /csp-report";
+        location /oauth2/ {
+                proxy_pass       http://127.0.0.1:2345;
+                proxy_set_header Host                    $host;
+                proxy_set_header X-Real-IP               $remote_addr;
+                proxy_set_header X-Scheme                $scheme;
+                proxy_set_header X-Auth-Request-Redirect $request_uri;
+        }
+        location = /oauth2/auth {
+                proxy_pass       http://127.0.0.1:2345;
+                proxy_set_header Host             $host;
+                proxy_set_header X-Real-IP        $remote_addr;
+                proxy_set_header X-Scheme         $scheme;
+                proxy_set_header Content-Length   "";
+                proxy_pass_request_body           off;
+        }
+        location / {
+                auth_request /oauth2/auth;
+                error_page 401 = /oauth2/sign_in;
+                auth_request_set $user   $upstream_http_x_auth_request_user;
+                auth_request_set $email  $upstream_http_x_auth_request_email;
+                proxy_set_header X-User  $user;
+                proxy_set_header X-Email $email;
+                auth_request_set $auth_cookie $upstream_http_set_cookie;
+                add_header Set-Cookie $auth_cookie;
+                proxy_pass http://127.0.0.1:5601;
+        }
+}
+
+EOF
+sudo systemctl start oauth2.service
+sudo systemctl start nginx.service

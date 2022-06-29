@@ -48,14 +48,43 @@ module "elastic-mig" {
   zone2             = var.zone2
   sa                = var.sa
   vpc-id            = module.vpc.vpc-id
-  machine_type      =    "e2-medium"
+  machine_type      = "e2-medium"
   priv-subnet       = module.vpc.priv-subnet
   image             = var.elk-image
   scopes            = var.wp-mig-scopes
   script            = file("scripts/elk-mig.sh")
   health-check-port = "9200"
-  target_size = 3
-  depends_on        = [module.elk-packer]
+  target_size       = 3
+  depends_on        = [module.elk-packer, google_compute_instance.elk-bootstrap]
+  initial_delay_sec = 300
+}
+
+resource "null_resource" "elastic-mig-delay" {
+  provisioner "local-exec" {
+    command = <<EOF
+sleep 30
+EOF
+  }
+  depends_on        = [module.elastic-mig]
+}
+
+module "logstash-mig" {
+  source            = "./modules/mig/"
+  name-base         = "logstash"
+  tags              = ["logstash"]
+  zone1             = var.zone1
+  zone2             = var.zone2
+  sa                = var.sa
+  vpc-id            = module.vpc.vpc-id
+  machine_type      = "e2-medium"
+  priv-subnet       = module.vpc.priv-subnet
+  image             = var.elk-image
+  scopes            = var.wp-mig-scopes
+  script            = file("scripts/logstash.sh")
+  health-check-port = "5044"
+  target_size       = 2
+  depends_on        = [module.elk-packer, null_resource.elastic-mig-delay]
+  initial_delay_sec = 300
 }
 
 module "cloud-sql" {
@@ -95,9 +124,9 @@ module "wp-mig" {
   priv-subnet       = module.vpc.priv-subnet
   image             = var.wp-image
   scopes            = var.wp-mig-scopes
-  health-check-path = "/index.html"
+  # health-check-path = "/index.html"
   script            = file("scripts/wp-mig.sh")
-  depends_on        = [module.wp-packer]
+  depends_on        = [module.wp-packer, module.logstash-mig, google_compute_instance.kibana ]
 }
 
 resource "google_compute_region_autoscaler" "autoscaler" {
