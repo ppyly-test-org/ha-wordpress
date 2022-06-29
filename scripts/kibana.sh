@@ -18,16 +18,16 @@ EOF
 
 sudo systemctl start kibana.service
 
-(cd /opt && wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.3.0/oauth2-proxy-v7.3.0.linux-amd64.tar.gz)
-(cd /opt && tar -xzf oauth2-proxy-v7.3.0.linux-amd64.tar.gz)
+(cd /opt && wget https://github.com/oauth2-proxy/oauth2-proxy/releases/download/v7.2.0/oauth2-proxy-v7.2.0.linux-amd64.tar.gz)
+(cd /opt && tar -xzf oauth2-proxy-v7.2.0.linux-amd64.tar.gz)
 
 COOKIE=$(openssl rand -base64 16)
 GH_CLIENT_ID=$(gcloud secrets versions access latest --secret='gh-client-id')
 GH_SECRET=$(gcloud secrets versions access latest --secret='gh-secret')
-sudo cat << EOF > /opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
+sudo cat << EOF > /opt/oauth2-proxy-v7.2.0.linux-amd64/start.sh
 #!/bin/sh
-/opt/oauth2-proxy-v7.3.0.linux-amd64/oauth2-proxy \\
---email-domain="github.com"  \\
+/opt/oauth2-proxy-v7.2.0.linux-amd64/oauth2-proxy \\
+--email-domain=*  \\
 --http-address="http://127.0.0.1:2345"  \\
 --upstream="https://kibana.ppyly.pp.ua" \\
 --redirect-url="https://kibana.ppyly.pp.ua/oauth2/callback" \\
@@ -36,9 +36,9 @@ sudo cat << EOF > /opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
 --provider=github \\
 --client-id="$GH_CLIENT_ID" \\
 --client-secret="$GH_SECRET"
---scope "user:email"
+
 EOF
-sudo chmod +x /opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
+sudo chmod +x /opt/oauth2-proxy-v7.2.0.linux-amd64/start.sh
 
 sudo cat << EOF > /etc/systemd/system/oauth2.service
 [Unit]
@@ -46,8 +46,8 @@ Description=oauth2 service
 After=network.target
 StartLimitIntervalSec=0
 [Service]
-WorkingDirectory=/opt/oauth2-proxy-v7.3.0.linux-amd64/
-ExecStart=/opt/oauth2-proxy-v7.3.0.linux-amd64/start.sh
+WorkingDirectory=/opt/oauth2-proxy-v7.2.0.linux-amd64/
+ExecStart=/opt/oauth2-proxy-v7.2.0.linux-amd64/start.sh
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -96,7 +96,7 @@ sudo cat << "EOF" > /etc/nginx/conf.d/kibana.conf
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
-        server_name kibana.ppyly.pp.ua;
+        server_name kibana.ppyly.pp.ua;2345
         rewrite ^ https://$server_name$request_uri? permanent;
 }
 
