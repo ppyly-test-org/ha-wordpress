@@ -96,7 +96,7 @@ sudo cat << "EOF" > /etc/nginx/conf.d/kibana.conf
 server {
         listen 80 default_server;
         listen [::]:80 default_server;
-        server_name kibana.ppyly.pp.ua;2345
+        server_name kibana.ppyly.pp.ua:2345;
         rewrite ^ https://$server_name$request_uri? permanent;
 }
 
