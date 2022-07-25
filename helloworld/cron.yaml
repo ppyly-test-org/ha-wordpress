@@ -1,0 +1,4 @@
+cron:
+- description: "job"
+  url: /cron.php
+  schedule: every 1 mins

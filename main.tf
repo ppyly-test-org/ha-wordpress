@@ -6,7 +6,7 @@ provider "google" {
 data "google_secret_manager_secret_version" "gibberish" {
   secret = "gibberish"
 }
-
+ 
 module "static" {
   source = "./modules/static/"
   domain = var.domain
@@ -17,6 +17,7 @@ module "storage" {
   region = var.region
   sa     = var.sa
 }
+
 
 module "vpc" {
   source   = "./modules/vpc/"

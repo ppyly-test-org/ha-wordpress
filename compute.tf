@@ -42,7 +42,7 @@ resource "google_compute_instance" "kibana" {
       nat_ip = module.static.static-ip1
     }
   }
-
+ 
   service_account {
     email  = var.sa
     scopes = ["cloud-platform"]
