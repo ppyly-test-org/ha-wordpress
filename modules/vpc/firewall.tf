@@ -54,6 +54,7 @@ resource "google_compute_firewall" "allow_elasticsearch_connection" {
     protocol = "tcp"
     ports    = ["9200-9210", "9300-9310"]
   }
+  source_ranges = ["0.0.0.0/0"]
   target_tags = ["elastic"]
 }
 

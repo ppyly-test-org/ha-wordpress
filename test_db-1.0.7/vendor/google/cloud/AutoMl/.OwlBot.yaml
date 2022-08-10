@@ -1,4 +1,0 @@
-deep-copy-regex:
-    - source: /google/cloud/automl/(.*)/.*-php/(.*)
-      dest: /owl-bot-staging/AutoMl/$1/$2
-api-name: AutoMl
