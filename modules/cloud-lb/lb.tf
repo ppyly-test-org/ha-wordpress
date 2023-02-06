@@ -8,6 +8,11 @@ resource "google_compute_backend_service" "wordpress-backend" {
   }
   name          = "wordpress-backend"
   health_checks = [var.healthcheck]
+  # enable_cdn = true
+  # cdn_policy {
+  #   cache_mode = "CACHE_ALL_STATIC"
+  #   default_ttl = 3600
+  #   client_ttl  = 7200
 }
 
 resource "google_compute_url_map" "url-map" {
